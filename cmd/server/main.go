@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/imbalaancing/go_final_project/internal/api"
 	"github.com/imbalaancing/go_final_project/internal/db"
 )
 
@@ -17,6 +18,8 @@ func main() {
 
 	fs := http.FileServer(http.Dir("./web"))
 	http.Handle("/", fs)
+
+	http.HandleFunc("/api/nextdate", api.NextDateHandler)
 
 	port := os.Getenv("TODO_PORT")
 	if port == "" {
