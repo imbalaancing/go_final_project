@@ -21,6 +21,14 @@ func main() {
 
 	http.HandleFunc("/api/nextdate", api.NextDateHandler)
 
+	http.HandleFunc("/api/task", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			api.AddTaskHandler(w, r, database)
+		} else {
+			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+		}
+	})
+
 	port := os.Getenv("TODO_PORT")
 	if port == "" {
 		port = "7540"
