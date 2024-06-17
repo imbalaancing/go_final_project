@@ -29,6 +29,14 @@ func main() {
 		}
 	})
 
+	http.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			api.GetTasksHandler(w, r, database)
+		} else {
+			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+		}
+	})
+
 	port := os.Getenv("TODO_PORT")
 	if port == "" {
 		port = "7540"

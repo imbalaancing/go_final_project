@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,10 +12,45 @@ import (
 )
 
 type Task struct {
+	ID      string `json:"id"`
 	Date    string `json:"date"`
 	Title   string `json:"title"`
 	Comment string `json:"comment,omitempty"`
 	Repeat  string `json:"repeat"`
+}
+
+func GetTasksHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+	rows, err := database.Query(`SELECT * FROM scheduler ORDER BY date ASC LIMIT 50`)
+	if err != nil {
+		http.Error(w, `{"error":"Failed to query tasks"}`, http.StatusInternalServerError)
+		return
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
+
+	tasks := make([]Task, 0)
+	for rows.Next() {
+		var task Task
+		err := rows.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+		if err != nil {
+			http.Error(w, `{"error":"Failed to scan task"}`, http.StatusInternalServerError)
+			return
+		}
+		tasks = append(tasks, task)
+	}
+
+	if err = rows.Err(); err != nil {
+		http.Error(w, `{"error":"Failed to read tasks"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	if err = json.NewEncoder(w).Encode(map[string][]Task{"tasks": tasks}); err != nil {
+		http.Error(w, `{"error":"Failed to encode tasks"}`, http.StatusInternalServerError)
+	}
 }
 
 func AddTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
