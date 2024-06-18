@@ -19,6 +19,73 @@ type Task struct {
 	Repeat  string `json:"repeat"`
 }
 
+func MarkTaskDoneHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, `{"error":"Не указан идентификатор"}`, http.StatusBadRequest)
+		return
+	}
+
+	var t Task
+	err := database.QueryRow(`SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`, id).Scan(&t.ID, &t.Date, &t.Title, &t.Comment, &t.Repeat)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
+		} else {
+			http.Error(w, `{"error":"Ошибка получения задачи"}`, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	if t.Repeat == "" {
+		_, err = database.Exec(`DELETE FROM scheduler WHERE id = ?`, id)
+	} else {
+		newDate, err := task.NextDate(time.Now(), t.Date, t.Repeat)
+		if err != nil {
+			http.Error(w, `{"error":"Ошибка расчета следующей даты"}`, http.StatusInternalServerError)
+			return
+		}
+		_, err = database.Exec(`UPDATE scheduler SET date = ? WHERE id = ?`, newDate, id)
+	}
+	if err != nil {
+		http.Error(w, `{"error":"Ошибка обновления задачи"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(map[string]string{})
+}
+
+func DeleteTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, `{"error":"Не указан идентификатор"}`, http.StatusBadRequest)
+		return
+	}
+
+	res, err := database.Exec(`DELETE FROM scheduler WHERE id = ?`, id)
+	if err != nil {
+		http.Error(w, `{"error":"Failed to delete task"}`, http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		http.Error(w, `{"error":"Failed to get affected rows"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	if err = json.NewEncoder(w).Encode(map[string]string{}); err != nil {
+		http.Error(w, `{"error":"Failed to encode response"}`, http.StatusInternalServerError)
+	}
+}
+
 func GetTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
@@ -185,7 +252,6 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 
 }
 
-// Обработчик для маршрута api/nextdate
 func NextDateHandler(w http.ResponseWriter, r *http.Request) {
 	nowStr := r.FormValue("now")
 	dateStr := r.FormValue("date")

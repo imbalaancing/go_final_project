@@ -16,8 +16,8 @@ func main() {
 	}
 	defer database.Close()
 
-	fs := http.FileServer(http.Dir("./web"))
-	http.Handle("/", fs)
+	fs := http.FileServer(http.Dir("web"))
+	http.Handle("/web/", http.StripPrefix("/web/", fs))
 
 	http.HandleFunc("/api/nextdate", api.NextDateHandler)
 
@@ -29,7 +29,17 @@ func main() {
 			api.GetTaskHandler(w, r, database)
 		case http.MethodPut:
 			api.UpdateTaskHandler(w, r, database)
+		case http.MethodDelete:
+			api.DeleteTaskHandler(w, r, database)
 		default:
+			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+		}
+	})
+
+	http.HandleFunc("/api/task/done", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			api.MarkTaskDoneHandler(w, r, database)
+		} else {
 			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
 		}
 	})
