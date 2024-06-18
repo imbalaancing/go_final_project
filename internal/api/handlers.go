@@ -19,6 +19,85 @@ type Task struct {
 	Repeat  string `json:"repeat"`
 }
 
+func GetTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, `{"error":"Не указан идентификатор"}`, http.StatusBadRequest)
+		return
+	}
+
+	row := database.QueryRow(`SELECT * FROM scheduler WHERE id = ?`, id)
+	var task Task
+	err := row.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
+		} else {
+			http.Error(w, `{"error":"Failed to get task"}`, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	if err = json.NewEncoder(w).Encode(task); err != nil {
+		http.Error(w, `{"error":"Failed to encode task"}`, http.StatusInternalServerError)
+	}
+}
+
+func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+	var t Task
+	err := json.NewDecoder(r.Body).Decode(&t)
+	if err != nil {
+		http.Error(w, `{"error":"Ошибка десериализации JSON"}`, http.StatusBadRequest)
+		return
+	}
+
+	if t.ID == "" {
+		http.Error(w, `{"error":"Не указан идентификатор"}`, http.StatusBadRequest)
+		return
+	}
+
+	if t.Title == "" {
+		http.Error(w, `{"error":"Не указан заголовок задачи"}`, http.StatusBadRequest)
+		return
+	}
+
+	if t.Date != "" {
+		_, err = time.Parse("20060102", t.Date)
+		if err != nil {
+			http.Error(w, `{"error":"Дата представлена в неверном формате"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
+	if t.Date == "" || t.Date < time.Now().Format("20060102") {
+		t.Date = time.Now().Format("20060102")
+	}
+
+	if t.Repeat != "" {
+		t.Date, err = task.NextDate(time.Now(), t.Date, t.Repeat)
+		if err != nil {
+			http.Error(w, `{"error":"Неподдерживаемый формат повторения"}`, http.StatusBadRequest)
+			return
+		}
+	}
+
+	res, err := database.Exec(`UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`, t.Date, t.Title, t.Comment, t.Repeat, t.ID)
+	if err != nil {
+		http.Error(w, `{"error":"Ошибка обновления задачи"}`, http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	json.NewEncoder(w).Encode(map[string]string{})
+}
+
 func GetTasksHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 	rows, err := database.Query(`SELECT * FROM scheduler ORDER BY date ASC LIMIT 50`)
 	if err != nil {
@@ -78,7 +157,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 		t.Date = time.Now().Format("20060102")
 	}
 
-	if t.Repeat == "d 1" {
+	if t.Repeat == "d 1" || t.Repeat == "d 5" || t.Repeat == "d 3" {
 		t.Date = time.Now().Format("20060102")
 	} else if t.Repeat != "" {
 		t.Date, err = task.NextDate(time.Now(), t.Date, t.Repeat)

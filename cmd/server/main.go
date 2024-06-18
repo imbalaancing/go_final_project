@@ -22,9 +22,14 @@ func main() {
 	http.HandleFunc("/api/nextdate", api.NextDateHandler)
 
 	http.HandleFunc("/api/task", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodPost {
+		switch r.Method {
+		case http.MethodPost:
 			api.AddTaskHandler(w, r, database)
-		} else {
+		case http.MethodGet:
+			api.GetTaskHandler(w, r, database)
+		case http.MethodPut:
+			api.UpdateTaskHandler(w, r, database)
+		default:
 			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
 		}
 	})
