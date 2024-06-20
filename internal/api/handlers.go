@@ -65,13 +65,13 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 
 	res, err := database.Exec(`DELETE FROM scheduler WHERE id = ?`, id)
 	if err != nil {
-		http.Error(w, `{"error":"Failed to delete task"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось удалить задачу"}`, http.StatusInternalServerError)
 		return
 	}
 
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
-		http.Error(w, `{"error":"Failed to get affected rows"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось получить строки"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -82,7 +82,7 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if err = json.NewEncoder(w).Encode(map[string]string{}); err != nil {
-		http.Error(w, `{"error":"Failed to encode response"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось закодировать ответ"}`, http.StatusInternalServerError)
 	}
 }
 
@@ -100,14 +100,14 @@ func GetTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 		if err == sql.ErrNoRows {
 			http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
 		} else {
-			http.Error(w, `{"error":"Failed to get task"}`, http.StatusInternalServerError)
+			http.Error(w, `{"error":"Не удалось получить задачу"}`, http.StatusInternalServerError)
 		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if err = json.NewEncoder(w).Encode(task); err != nil {
-		http.Error(w, `{"error":"Failed to encode task"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось закодировать задачу"}`, http.StatusInternalServerError)
 	}
 }
 
@@ -168,7 +168,7 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 func GetTasksHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 	rows, err := database.Query(`SELECT * FROM scheduler ORDER BY date ASC LIMIT 50`)
 	if err != nil {
-		http.Error(w, `{"error":"Failed to query tasks"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось запросить задачи"}`, http.StatusInternalServerError)
 		return
 	}
 	defer func() {
@@ -182,20 +182,20 @@ func GetTasksHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 		var task Task
 		err := rows.Scan(&task.ID, &task.Date, &task.Title, &task.Comment, &task.Repeat)
 		if err != nil {
-			http.Error(w, `{"error":"Failed to scan task"}`, http.StatusInternalServerError)
+			http.Error(w, `{"error":"Не удалось проверить задачу"}`, http.StatusInternalServerError)
 			return
 		}
 		tasks = append(tasks, task)
 	}
 
 	if err = rows.Err(); err != nil {
-		http.Error(w, `{"error":"Failed to read tasks"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось прочитать задачи"}`, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	if err = json.NewEncoder(w).Encode(map[string][]Task{"tasks": tasks}); err != nil {
-		http.Error(w, `{"error":"Failed to encode tasks"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось закодировать задачи"}`, http.StatusInternalServerError)
 	}
 }
 
@@ -203,19 +203,19 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 	var t Task
 	err := json.NewDecoder(r.Body).Decode(&t)
 	if err != nil {
-		http.Error(w, `{"error":"Invalid request body"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"Неверное тело запроса"}`, http.StatusBadRequest)
 		return
 	}
 
 	if t.Title == "" {
-		http.Error(w, `{"error":"Title is required"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"Требуется название"}`, http.StatusBadRequest)
 		return
 	}
 
 	if t.Date != "" {
 		_, err = time.Parse("20060102", t.Date)
 		if err != nil {
-			http.Error(w, `{"error":"Invalid date format"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"Неверный формат даты"}`, http.StatusBadRequest)
 			return
 		}
 	}
@@ -229,7 +229,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 	} else if t.Repeat != "" {
 		t.Date, err = task.NextDate(time.Now(), t.Date, t.Repeat)
 		if err != nil {
-			http.Error(w, `{"error":"Invalid repeat rule"}`, http.StatusBadRequest)
+			http.Error(w, `{"error":"Недопустимое правило повторения"}`, http.StatusBadRequest)
 			return
 		}
 	}
@@ -237,13 +237,13 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 	res, err := database.Exec(`INSERT INTO scheduler (date, title, comment, repeat) VALUES (?, ?, ?, ?)`,
 		t.Date, t.Title, t.Comment, t.Repeat)
 	if err != nil {
-		http.Error(w, `{"error":"Failed to insert task"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось вставить задачу"}`, http.StatusInternalServerError)
 		return
 	}
 
 	id, err := res.LastInsertId()
 	if err != nil {
-		http.Error(w, `{"error":"Failed to get task ID"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось получить идентификатор задачи"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -258,13 +258,13 @@ func NextDateHandler(w http.ResponseWriter, r *http.Request) {
 	repeat := r.FormValue("repeat")
 
 	if nowStr == "" || dateStr == "" || repeat == "" {
-		http.Error(w, "Missing required query parameters", http.StatusBadRequest)
+		http.Error(w, "Отсутствуют обязательные параметры запроса", http.StatusBadRequest)
 		return
 	}
 
 	now, err := time.Parse(task.DATE_FORMAT, nowStr)
 	if err != nil {
-		http.Error(w, "Invalid 'now' date format", http.StatusBadRequest)
+		http.Error(w, "Неверный формат даты «сейчас».", http.StatusBadRequest)
 		return
 	}
 

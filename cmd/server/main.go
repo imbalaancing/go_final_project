@@ -32,7 +32,7 @@ func main() {
 		case http.MethodDelete:
 			api.DeleteTaskHandler(w, r, database)
 		default:
-			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+			http.Error(w, "Неподдерживаемый метод", http.StatusMethodNotAllowed)
 		}
 	})
 
@@ -40,7 +40,7 @@ func main() {
 		if r.Method == http.MethodPost {
 			api.MarkTaskDoneHandler(w, r, database)
 		} else {
-			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+			http.Error(w, "Неподдерживаемый метод", http.StatusMethodNotAllowed)
 		}
 	})
 
@@ -48,7 +48,7 @@ func main() {
 		if r.Method == http.MethodGet {
 			api.GetTasksHandler(w, r, database)
 		} else {
-			http.Error(w, "Unsupported method", http.StatusMethodNotAllowed)
+			http.Error(w, "Неподдерживаемый метод", http.StatusMethodNotAllowed)
 		}
 	})
 
