@@ -16,8 +16,8 @@ func main() {
 	}
 	defer database.Close()
 
-	fs := http.FileServer(http.Dir("web"))
-	http.Handle("/web/", http.StripPrefix("/web/", fs))
+	fs := http.FileServer(http.Dir("./web"))
+	http.Handle("/", fs)
 
 	http.HandleFunc("/api/nextdate", api.NextDateHandler)
 
