@@ -7,10 +7,14 @@
 
 ```bash
 docker build -t my_app .
-docker run -p 7540:7540 my_app
+docker run -p 7540:7540 -e TODO_PORT=7540 my_app
 ```
-
 Приложение будет доступно по адресу http://localhost:7540.
+
+Если переменная окружения TODO_PORT должна быть другой, измените значение в команде docker run:
+```bash
+docker run -p <local_port>:<container_port> -e TODO_PORT=<desired_port> my_app
+```
 
 ## API
 Проект предоставляет следующие API: 
