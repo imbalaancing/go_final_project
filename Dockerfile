@@ -1,4 +1,4 @@
-FROM golang:latest AS builder
+FROM golang:1.22.3 AS builder
 
 WORKDIR /app
 
@@ -9,13 +9,14 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=1 go build -o /my_app ./cmd/server/main.go
+ENV CGO_ENABLED=1
+RUN go build -o /my_app ./cmd/server/main.go
 
 COPY web /app/web
 
 EXPOSE 7540
 
-ENV HTTP_PORT=7540
+ENV TODO_PORT=7540
 ENV TODO_DBFILE=/app/scheduler.db
 
 CMD ["/my_app"]
