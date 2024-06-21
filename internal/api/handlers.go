@@ -11,6 +11,8 @@ import (
 	"github.com/imbalaancing/go_final_project/internal/task"
 )
 
+const TaskLimit = 50
+
 type Task struct {
 	ID      string `json:"id"`
 	Date    string `json:"date"`
@@ -130,15 +132,15 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 	}
 
 	if t.Date != "" {
-		_, err = time.Parse("20060102", t.Date)
+		_, err = time.Parse(task.DATE_FORMAT, t.Date)
 		if err != nil {
 			http.Error(w, `{"error":"Дата представлена в неверном формате"}`, http.StatusBadRequest)
 			return
 		}
 	}
 
-	if t.Date == "" || t.Date < time.Now().Format("20060102") {
-		t.Date = time.Now().Format("20060102")
+	if t.Date == "" || t.Date < time.Now().Format(task.DATE_FORMAT) {
+		t.Date = time.Now().Format(task.DATE_FORMAT)
 	}
 
 	if t.Repeat != "" {
@@ -166,7 +168,7 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 }
 
 func GetTasksHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
-	rows, err := database.Query(`SELECT * FROM scheduler ORDER BY date ASC LIMIT 50`)
+	rows, err := database.Query(`SELECT * FROM scheduler ORDER BY date ASC LIMIT ?`, TaskLimit)
 	if err != nil {
 		http.Error(w, `{"error":"Не удалось запросить задачи"}`, http.StatusInternalServerError)
 		return
@@ -213,19 +215,19 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 	}
 
 	if t.Date != "" {
-		_, err = time.Parse("20060102", t.Date)
+		_, err = time.Parse(task.DATE_FORMAT, t.Date)
 		if err != nil {
 			http.Error(w, `{"error":"Неверный формат даты"}`, http.StatusBadRequest)
 			return
 		}
 	}
 
-	if t.Date == "" || t.Date < time.Now().Format("20060102") {
-		t.Date = time.Now().Format("20060102")
+	if t.Date == "" || t.Date < time.Now().Format(task.DATE_FORMAT) {
+		t.Date = time.Now().Format(task.DATE_FORMAT)
 	}
 
 	if t.Repeat == "d 1" || t.Repeat == "d 5" || t.Repeat == "d 3" {
-		t.Date = time.Now().Format("20060102")
+		t.Date = time.Now().Format(task.DATE_FORMAT)
 	} else if t.Repeat != "" {
 		t.Date, err = task.NextDate(time.Now(), t.Date, t.Repeat)
 		if err != nil {
