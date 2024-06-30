@@ -9,9 +9,17 @@ import (
 
 const DATE_FORMAT = "20060102"
 
+type Task struct {
+	ID      string `json:"id"`
+	Date    string `json:"date"`
+	Title   string `json:"title"`
+	Comment string `json:"comment,omitempty"`
+	Repeat  string `json:"repeat"`
+}
+
 func NextDate(now time.Time, date string, repeat string) (string, error) {
 	if repeat == "" {
-		return "", nil // Задача удаляется, если правило не указано
+		return "", nil
 	}
 
 	startDate, err := time.Parse(DATE_FORMAT, date)
@@ -46,4 +54,30 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 	default:
 		return "", fmt.Errorf("неподдерживаемый формат %s", param)
 	}
+}
+
+func ValidateTask(t *Task) error {
+	if t.Title == "" {
+		return fmt.Errorf("не указан заголовок задачи")
+	}
+
+	if t.Date != "" {
+		if _, err := time.Parse(DATE_FORMAT, t.Date); err != nil {
+			return fmt.Errorf("дата представлена в неверном формате")
+		}
+	}
+
+	if t.Date == "" || t.Date < time.Now().Format(DATE_FORMAT) {
+		t.Date = time.Now().Format(DATE_FORMAT)
+	}
+
+	if t.Repeat != "" {
+		var err error
+		t.Date, err = NextDate(time.Now(), t.Date, t.Repeat)
+		if err != nil {
+			return fmt.Errorf("неподдерживаемый формат повторения")
+		}
+	}
+
+	return nil
 }
