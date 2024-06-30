@@ -168,7 +168,7 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 }
 
 func GetTasksHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
-	rows, err := database.Query(`SELECT * FROM scheduler ORDER BY date ASC LIMIT ?`, TaskLimit)
+	rows, err := database.Query(`SELECT id, date, title, comment, repeat FROM scheduler ORDER BY date ASC LIMIT ?`, TaskLimit)
 	if err != nil {
 		http.Error(w, `{"error":"Не удалось запросить задачи"}`, http.StatusInternalServerError)
 		return
