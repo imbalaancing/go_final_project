@@ -9,14 +9,14 @@ RUN go mod download
 
 COPY . .
 
-ENV CGO_ENABLED=1
 RUN go build -o /my_app ./cmd/server/main.go
 
 COPY web /app/web
 
-EXPOSE 7540
-
+ENV CGO_ENABLED=1
 ENV TODO_PORT=7540
 ENV TODO_DBFILE=/app/scheduler.db
+
+EXPOSE 7540
 
 CMD ["/my_app"]
