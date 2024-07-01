@@ -56,14 +56,14 @@ func NextDate(now time.Time, date string, repeat string) (string, error) {
 	}
 }
 
-func ValidateTask(t *Task) error {
+func (t *Task) ValidateTask() error {
 	if t.Title == "" {
 		return fmt.Errorf("не указан заголовок задачи")
 	}
 
 	if t.Date != "" {
 		if _, err := time.Parse(DATE_FORMAT, t.Date); err != nil {
-			return fmt.Errorf("дата представлена в неверном формате")
+			return fmt.Errorf("неверный формат даты")
 		}
 	}
 
@@ -72,11 +72,11 @@ func ValidateTask(t *Task) error {
 	}
 
 	if t.Repeat != "" {
-		var err error
-		t.Date, err = NextDate(time.Now(), t.Date, t.Repeat)
+		newDate, err := NextDate(time.Now(), t.Date, t.Repeat)
 		if err != nil {
-			return fmt.Errorf("неподдерживаемый формат повторения")
+			return err
 		}
+		t.Date = newDate
 	}
 
 	return nil

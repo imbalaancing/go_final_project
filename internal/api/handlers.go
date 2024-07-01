@@ -41,7 +41,7 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 		return
 	}
 
-	if err = task.ValidateTask(&t); err != nil {
+	if err = t.ValidateTask(); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 		return
 	}
@@ -77,7 +77,7 @@ func AddTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
 		return
 	}
 
-	if err = task.ValidateTask(&t); err != nil {
+	if err = t.ValidateTask(); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 		return
 	}
