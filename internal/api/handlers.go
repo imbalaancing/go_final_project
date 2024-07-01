@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/imbalaancing/go_final_project/internal/date"
@@ -11,30 +12,28 @@ import (
 	"github.com/imbalaancing/go_final_project/internal/task"
 )
 
-func GetTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+func GetTaskHandler(w http.ResponseWriter, r *http.Request, storage *db.Storage) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		http.Error(w, `{"error":"Не указан идентификатор"}`, http.StatusBadRequest)
 		return
 	}
 
-	t, err := db.GetTask(database, id)
+	task, err := storage.GetTask(id)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
 		} else {
-			http.Error(w, `{"error":"Не удалось получить задачу"}`, http.StatusInternalServerError)
+			http.Error(w, `{"error":"Ошибка получения задачи"}`, http.StatusInternalServerError)
 		}
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	if err = json.NewEncoder(w).Encode(t); err != nil {
-		http.Error(w, `{"error":"Не удалось закодировать задачу"}`, http.StatusInternalServerError)
-	}
+	json.NewEncoder(w).Encode(task)
 }
 
-func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, storage *db.Storage) {
 	var t task.Task
 	err := json.NewDecoder(r.Body).Decode(&t)
 	if err != nil {
@@ -42,13 +41,17 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 		return
 	}
 
-	if err = t.ValidateTask(); err != nil {
+	if t.ID == "" {
+		http.Error(w, `{"error":"Не указан идентификатор"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err := t.ValidateTask(); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 		return
 	}
 
-	err = db.UpdateTask(database, &t)
-	if err != nil {
+	if err := storage.UpdateTask(t); err != nil {
 		http.Error(w, `{"error":"Ошибка обновления задачи"}`, http.StatusInternalServerError)
 		return
 	}
@@ -57,51 +60,48 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 	json.NewEncoder(w).Encode(map[string]string{})
 }
 
-func GetTasksHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
-	tasks, err := db.GetTasks(database)
+func GetTasksHandler(w http.ResponseWriter, r *http.Request, storage *db.Storage) {
+	tasks, err := storage.GetTasks(db.TaskLimit)
 	if err != nil {
-		http.Error(w, `{"error":"Не удалось запросить задачи"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Ошибка запроса задач"}`, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	if err = json.NewEncoder(w).Encode(map[string][]task.Task{"tasks": tasks}); err != nil {
-		http.Error(w, `{"error":"Не удалось закодировать задачи"}`, http.StatusInternalServerError)
-	}
+	json.NewEncoder(w).Encode(map[string][]task.Task{"tasks": tasks})
 }
 
-func AddTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+func AddTaskHandler(w http.ResponseWriter, r *http.Request, storage *db.Storage) {
 	var t task.Task
 	err := json.NewDecoder(r.Body).Decode(&t)
 	if err != nil {
-		http.Error(w, `{"error":"Недопустимый текст запроса"}`, http.StatusBadRequest)
+		http.Error(w, `{"error":"Ошибка десериализации JSON"}`, http.StatusBadRequest)
 		return
 	}
 
-	if err = t.ValidateTask(); err != nil {
+	if err := t.ValidateTask(); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 		return
 	}
 
-	err = db.InsertTask(database, &t)
+	id, err := storage.InsertTask(t)
 	if err != nil {
-		http.Error(w, `{"error":"Не удалось добавить задачу"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Ошибка добавления задачи"}`, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(map[string]string{"id": t.ID})
+	json.NewEncoder(w).Encode(map[string]string{"id": strconv.FormatInt(id, 10)})
 }
 
-func DeleteTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+func DeleteTaskHandler(w http.ResponseWriter, r *http.Request, storage *db.Storage) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		http.Error(w, `{"error":"Не указан идентификатор"}`, http.StatusBadRequest)
 		return
 	}
 
-	err := db.DeleteTask(database, id)
-	if err != nil {
+	if err := storage.DeleteTask(id); err != nil {
 		http.Error(w, `{"error":"Ошибка удаления задачи"}`, http.StatusInternalServerError)
 		return
 	}
@@ -110,16 +110,15 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request, database *sql.DB)
 	json.NewEncoder(w).Encode(map[string]string{})
 }
 
-func MarkTaskDoneHandler(w http.ResponseWriter, r *http.Request, database *sql.DB) {
+func MarkTaskDoneHandler(w http.ResponseWriter, r *http.Request, storage *db.Storage) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		http.Error(w, `{"error":"Не указан идентификатор"}`, http.StatusBadRequest)
 		return
 	}
 
-	err := db.MarkTaskDone(database, id)
-	if err != nil {
-		http.Error(w, `{"error":"Ошибка выполнения задачи"}`, http.StatusInternalServerError)
+	if err := storage.MarkTaskDone(id); err != nil {
+		http.Error(w, `{"error":"Ошибка отметки выполнения задачи"}`, http.StatusInternalServerError)
 		return
 	}
 

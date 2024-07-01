@@ -10,11 +10,18 @@ import (
 )
 
 func main() {
-	database, err := db.InitDB()
+	dbFileName := "scheduler.db"
+	if envDbFileName := os.Getenv("TODO_DBFILE"); envDbFileName != "" {
+		dbFileName = envDbFileName
+	}
+
+	database, err := db.InitDB(dbFileName)
 	if err != nil {
 		log.Fatalf("Ошибка инициализации базы данных: %v", err)
 	}
 	defer database.Close()
+
+	storage := db.NewTaskStorage(database)
 
 	fs := http.FileServer(http.Dir("./web"))
 	http.Handle("/", fs)
@@ -24,13 +31,13 @@ func main() {
 	http.HandleFunc("/api/task", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			api.AddTaskHandler(w, r, database)
+			api.AddTaskHandler(w, r, storage)
 		case http.MethodGet:
-			api.GetTaskHandler(w, r, database)
+			api.GetTaskHandler(w, r, storage)
 		case http.MethodPut:
-			api.UpdateTaskHandler(w, r, database)
+			api.UpdateTaskHandler(w, r, storage)
 		case http.MethodDelete:
-			api.DeleteTaskHandler(w, r, database)
+			api.DeleteTaskHandler(w, r, storage)
 		default:
 			http.Error(w, "Неподдерживаемый метод", http.StatusMethodNotAllowed)
 		}
@@ -38,7 +45,7 @@ func main() {
 
 	http.HandleFunc("/api/task/done", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			api.MarkTaskDoneHandler(w, r, database)
+			api.MarkTaskDoneHandler(w, r, storage)
 		} else {
 			http.Error(w, "Неподдерживаемый метод", http.StatusMethodNotAllowed)
 		}
@@ -46,7 +53,7 @@ func main() {
 
 	http.HandleFunc("/api/tasks", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			api.GetTasksHandler(w, r, database)
+			api.GetTasksHandler(w, r, storage)
 		} else {
 			http.Error(w, "Неподдерживаемый метод", http.StatusMethodNotAllowed)
 		}
