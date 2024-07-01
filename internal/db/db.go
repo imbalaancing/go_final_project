@@ -63,18 +63,21 @@ func (s *Storage) InsertTask(t task.Task) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-
 	return res.LastInsertId()
 }
 
-func (s *Storage) GetTasks(TaskLimit int) ([]task.Task, error) {
+func (s *Storage) GetTasks() ([]task.Task, error) {
 	rows, err := s.db.Query(`SELECT id, date, title, comment, repeat FROM scheduler ORDER BY date ASC LIMIT ?`, TaskLimit)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println(err)
+		}
+	}()
 
-	var tasks []task.Task
+	tasks := make([]task.Task, 0)
 	for rows.Next() {
 		var t task.Task
 		err := rows.Scan(&t.ID, &t.Date, &t.Title, &t.Comment, &t.Repeat)
@@ -83,6 +86,7 @@ func (s *Storage) GetTasks(TaskLimit int) ([]task.Task, error) {
 		}
 		tasks = append(tasks, t)
 	}
+
 	if err = rows.Err(); err != nil {
 		return nil, err
 	}
@@ -97,10 +101,18 @@ func (s *Storage) GetTask(id string) (task.Task, error) {
 	return t, err
 }
 
-func (s *Storage) UpdateTask(t task.Task) error {
-	_, err := s.db.Exec(`UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`,
-		t.Date, t.Title, t.Comment, t.Repeat, t.ID)
-	return err
+func (s *Storage) UpdateTask(t task.Task) (int64, error) {
+	res, err := s.db.Exec(`UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`, t.Date, t.Title, t.Comment, t.Repeat, t.ID)
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, nil
 }
 
 func (s *Storage) MarkTaskDone(id string) error {
@@ -125,7 +137,16 @@ func (s *Storage) MarkTaskDone(id string) error {
 	return err
 }
 
-func (s *Storage) DeleteTask(id string) error {
-	_, err := s.db.Exec(`DELETE FROM scheduler WHERE id = ?`, id)
-	return err
+func (s *Storage) DeleteTask(id string) (int64, error) {
+	res, err := s.db.Exec(`DELETE FROM scheduler WHERE id = ?`, id)
+	if err != nil {
+		return 0, err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+
+	return rowsAffected, nil
 }

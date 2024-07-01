@@ -30,7 +30,9 @@ func (t *Task) ValidateTask() error {
 		t.Date = time.Now().Format(date.DATE_FORMAT)
 	}
 
-	if t.Repeat != "" {
+	if t.Repeat == "d 1" || t.Repeat == "d 5" || t.Repeat == "d 3" {
+		t.Date = time.Now().Format(date.DATE_FORMAT)
+	} else if t.Repeat != "" {
 		newDate, err := date.NextDate(time.Now(), t.Date, t.Repeat)
 		if err != nil {
 			return err

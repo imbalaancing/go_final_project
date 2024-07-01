@@ -10,9 +10,9 @@ import (
 )
 
 func main() {
-	dbFileName := "scheduler.db"
-	if envDbFileName := os.Getenv("TODO_DBFILE"); envDbFileName != "" {
-		dbFileName = envDbFileName
+	dbFileName := os.Getenv("TODO_DBFILE")
+	if dbFileName == "" {
+		dbFileName = "scheduler.db"
 	}
 
 	database, err := db.InitDB(dbFileName)
@@ -24,7 +24,7 @@ func main() {
 	storage := db.NewTaskStorage(database)
 
 	fs := http.FileServer(http.Dir("./web"))
-	http.Handle("/", fs)
+	http.Handle("/web/", http.StripPrefix("/web/", fs))
 
 	http.HandleFunc("/api/nextdate", api.NextDateHandler)
 

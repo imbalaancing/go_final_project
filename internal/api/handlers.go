@@ -41,18 +41,19 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, storage *db.Stora
 		return
 	}
 
-	if t.ID == "" {
-		http.Error(w, `{"error":"Не указан идентификатор"}`, http.StatusBadRequest)
-		return
-	}
-
 	if err := t.ValidateTask(); err != nil {
 		http.Error(w, `{"error":"`+err.Error()+`"}`, http.StatusBadRequest)
 		return
 	}
 
-	if err := storage.UpdateTask(t); err != nil {
+	rowsAffected, err := storage.UpdateTask(t)
+	if err != nil {
 		http.Error(w, `{"error":"Ошибка обновления задачи"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
 		return
 	}
 
@@ -61,14 +62,16 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request, storage *db.Stora
 }
 
 func GetTasksHandler(w http.ResponseWriter, r *http.Request, storage *db.Storage) {
-	tasks, err := storage.GetTasks(db.TaskLimit)
+	tasks, err := storage.GetTasks()
 	if err != nil {
-		http.Error(w, `{"error":"Ошибка запроса задач"}`, http.StatusInternalServerError)
+		http.Error(w, `{"error":"Не удалось запросить задачи"}`, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	json.NewEncoder(w).Encode(map[string][]task.Task{"tasks": tasks})
+	if err := json.NewEncoder(w).Encode(map[string][]task.Task{"tasks": tasks}); err != nil {
+		http.Error(w, `{"error":"Не удалось закодировать задачи"}`, http.StatusInternalServerError)
+	}
 }
 
 func AddTaskHandler(w http.ResponseWriter, r *http.Request, storage *db.Storage) {
@@ -101,8 +104,14 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request, storage *db.Stora
 		return
 	}
 
-	if err := storage.DeleteTask(id); err != nil {
+	rowsAffected, err := storage.DeleteTask(id)
+	if err != nil {
 		http.Error(w, `{"error":"Ошибка удаления задачи"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if rowsAffected == 0 {
+		http.Error(w, `{"error":"Задача не найдена"}`, http.StatusNotFound)
 		return
 	}
 
