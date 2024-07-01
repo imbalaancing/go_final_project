@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/imbalaancing/go_final_project/internal/date"
 	"github.com/imbalaancing/go_final_project/internal/db"
 	"github.com/imbalaancing/go_final_project/internal/task"
 )
@@ -136,13 +137,13 @@ func NextDateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now, err := time.Parse(task.DATE_FORMAT, nowStr)
+	now, err := time.Parse(date.DATE_FORMAT, nowStr)
 	if err != nil {
 		http.Error(w, "Недопустимый формат даты сейчас", http.StatusBadRequest)
 		return
 	}
 
-	nextDate, err := task.NextDate(now, dateStr, repeat)
+	nextDate, err := date.NextDate(now, dateStr, repeat)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

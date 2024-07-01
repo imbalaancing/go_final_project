@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/imbalaancing/go_final_project/internal/date"
 	"github.com/imbalaancing/go_final_project/internal/task"
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -118,7 +119,7 @@ func MarkTaskDone(db *sql.DB, id string) error {
 		return DeleteTask(db, id)
 	}
 
-	nextDate, err := task.NextDate(time.Now(), t.Date, t.Repeat)
+	nextDate, err := date.NextDate(time.Now(), t.Date, t.Repeat)
 	if err != nil {
 		return err
 	}
