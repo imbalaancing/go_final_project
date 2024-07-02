@@ -24,7 +24,7 @@ func main() {
 	storage := db.NewTaskStorage(database)
 
 	fs := http.FileServer(http.Dir("./web"))
-	http.Handle("/web/", http.StripPrefix("/web/", fs))
+	http.Handle("/", fs)
 
 	http.HandleFunc("/api/nextdate", api.NextDateHandler)
 
